@@ -1,0 +1,5 @@
+{
+	"html":"<h1>Second</h1><script>alert('This is the second subpage')</script><hr class=\"hide-in-main\"><div class=\"hide-in-main\">This is not a full page. <a href=\"/index.html\">This is one</a></div><form id=\"form1\"></form>",
+	"title":"Second page",
+	"success":true
+}

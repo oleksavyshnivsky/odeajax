@@ -1,0 +1,5 @@
+{
+	"html":"<h1>First</h1><hr class=\"hide-in-main\"><div class=\"hide-in-main\">This is not a full page. <a href=\"/index.html\">This is one</a></div>",
+	"title":"First page",
+	"success":true
+}
