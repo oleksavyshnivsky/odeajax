@@ -75,7 +75,7 @@ ODEURL.addParameter = (link, name, value) => {
 // ————————————————————————————————————————————————————————————————————————————————
 // 
 // ————————————————————————————————————————————————————————————————————————————————
-const ODEAJAX = new Object
+var ODEAJAX = new Object
 // Block parallel requests
 ODEAJAX.performing = false
 // Base options
@@ -111,12 +111,15 @@ ODEAJAX.readOptions = element => {
 		: false
 	if (!options.scroll && options.target.id === 'main') options.scroll = options.target
 	// 
-	options.url = element.nodeName === 'FORM' ? element.action : element.href
+	options.url = element.nodeName === 'FORM' ? element.getAttribute('action') : element.href // Allow form to have an input named "action"
+	if (element.nodeName === 'FORM' && !options.url)
+		options.url = options.method === 'POST' ? window.location.href : window.location.protocol + '//' + window.location.host + window.location.pathname
+	//
 	options.history = options.target.id === 'main' ? true : element.hasAttribute('data-oa-history')
 	if (element.nodeName === 'FORM') {
 		options.form = element
 		options.oaResetOnCancel = element.dataset.oaResetOnCancel
-		options.method = element.method.toUpperCase()
+		options.method = (element.getAttribute('method') || 'GET').toUpperCase()	// Allow form to have an input named "method"
 		options.data = new FormData(element)
 		if (options.data && options.method === 'GET') {
 			options.url += (options.url.indexOf('?')>-1?'&':'?') + new URLSearchParams(options.data).toString()
@@ -161,7 +164,7 @@ ODEAJAX.doActualAjax = options => {
 // AJAX request wrapper
 // ————————————————————————————————————————————————————————————————————————————————
 ODEAJAX.doAjax = options => {
-	options = Object.assign(ODEAJAX.baseoptions, options)
+	options = {...ODEAJAX.baseoptions, ...options}
 	// Confirm request
 	if (options.confirm && !confirm(options.confirm)) {
 		if (options.oaResetOnCancel) option.form.reset()
@@ -169,8 +172,6 @@ ODEAJAX.doAjax = options => {
 	}
 	// Action before request (has to return true to continue)
 	if (options.before && typeof window[options.before] === 'function' && !window[options.before]()) return false
-	// No parallel requests
-	ODEAJAX.performing = true
 	// Do request
 	ODEAJAX.doActualAjax(options).then(response => {
 		ODEAJAX.showResponse(response, options)
@@ -217,7 +218,7 @@ ODEAJAX.showResponse = (response, options) => {
 			var doc = new DOMParser().parseFromString(response.html, 'text/html')
 			// Partial HTML-document
 			if (options.target.id) {
-				var el = doc.querySelector(options.target.id)
+				var el = doc.getElementById(options.target.id)
 				if (el) {
 					response.html = el.innerHTML
 					doc = el
@@ -227,7 +228,7 @@ ODEAJAX.showResponse = (response, options) => {
 			options.target.innerHTML = response.html
 			// Execute JS
 			doc.querySelectorAll('script').forEach(script => {
-				if (script.src) loadJS(script.src, null, target)
+				if (script.src) loadJS(script.src, null, options.target)
 				else 			eval(script.innerText)
 			})
 			// Document title
@@ -306,7 +307,7 @@ docReady(() => {
 				if (e.button > 0 || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey) return true
 				e.preventDefault()
 				e.delegateTarget = target
-				if (ODEAJAX.ajaxPerforming) return false
+				if (ODEAJAX.performing) return false
 				ODEAJAX.doAjax(ODEAJAX.readOptions(e.delegateTarget))
 				return false
 			} else if (target.nodeName === 'A' && target.hasAttribute('data-oa-submit')) {
@@ -345,7 +346,7 @@ docReady(() => {
 	// ————————————————————————————————————————————————————————————————————————————————
 	document.addEventListener('change', e => {
 		if (e.target.hasAttribute('data-oa-submit')) {
-			e.delegateTarget = target.form
+			e.delegateTarget = e.target.form
 			ODEAJAX.doForm(e)
 		}
 	})
