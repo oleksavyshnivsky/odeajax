@@ -111,6 +111,8 @@ ODEAJAX.readOptions = element => {
 		: false
 	if (!options.scroll && options.target.id === 'main') options.scroll = options.target
 	// 
+	if (element.nodeName === 'FORM')
+		options.method = (element.getAttribute('method') || 'GET').toUpperCase()	// Allow form to have an input named "method"
 	options.url = element.nodeName === 'FORM' ? element.getAttribute('action') : element.href // Allow form to have an input named "action"
 	if (element.nodeName === 'FORM' && !options.url)
 		options.url = options.method === 'POST' ? window.location.href : window.location.protocol + '//' + window.location.host + window.location.pathname
@@ -119,7 +121,6 @@ ODEAJAX.readOptions = element => {
 	if (element.nodeName === 'FORM') {
 		options.form = element
 		options.oaResetOnCancel = element.dataset.oaResetOnCancel
-		options.method = (element.getAttribute('method') || 'GET').toUpperCase()	// Allow form to have an input named "method"
 		options.data = new FormData(element)
 		if (options.data && options.method === 'GET') {
 			options.url += (options.url.indexOf('?')>-1?'&':'?') + new URLSearchParams(options.data).toString()
