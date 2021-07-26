@@ -84,10 +84,11 @@ ODEAJAX.baseoptions = {
 	callback: false,	// Function after AJAX request
 	confirm: false,		// Confirmation question
 	data: false,
-	history: true,		// Add to browser history
+	history: false,		// Add to browser history
 	method: 'GET',
 	scroll: document.querySelector('#main'),	// Scroll to this element
 	target: document.querySelector('#main'),	// Response goes here
+	// enctype: 'application/x-www-form-urlencoded;charset=UTF-8',
 	// url: 			// Required in options
 }
 
@@ -127,6 +128,7 @@ ODEAJAX.readOptions = element => {
 			options.data = false
 		}
 	}
+	//
 	return options
 }
 
@@ -142,6 +144,7 @@ ODEAJAX.doActualAjax = options => {
 		var xhr = new XMLHttpRequest()
 		xhr.open(options.method, options.url)
 		xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest')
+		if (options.enctype) xhr.setRequestHeader('Content-Type', options.enctype)
 		xhr.onload = function() {
 			ODEAJAX.performing = false
 			if (xhr.status === 200) {
