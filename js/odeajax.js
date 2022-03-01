@@ -17,12 +17,21 @@
 
 // Attributes:
 // data-oa 			— anchors and forms for which this script is made
-// data-oa-target 	— element for response. Default value: "#main"
-//						If a value is a semicolon-separated list, response goes into the first element found on page 
-// data-oa-history	— if present (or if "data-oa-target" is "#main"), add this URL to browser history 
-// data-oa-scroll	— if present, scroll to element "value" (default value: "#main")
+// data-oa-before	— function to execute before AJAX request. If returns false, request is cancelled
+// data-oa-callback	— function to execute after a successful AJAX request, after a showResponse function
+// data-oa-confirm 	— text of a confirmation question
+// 						If a user declines a confirmation, AJAX request is not executed
+// data-oa-target 	— selector of an element which will receive the HTML part of response. Default value: "#main"
+//						If a value is a semicolon-separated list ("#submain;#main"), response goes into the first element found on page 
+// 						If not given, response goes to the closest [data-oa-main] element, and if such doesn't exist — to the #main
+// data-oa-history	— if present (or if "data-oa-target" is "#main"), this URL will be added to browser history
+// data-oa-scroll	— selector of an element that will be scrolled into view after a successful request. 
+// 						If present without value, data-oa-target element will be scrolled into view 
 // data-oa-submit 	— attribute for A, INPUT, SELECT nodes which must submit forms
-// 						"A" node outside of needed form has to have form selector as a value (data-oa-submit="#form-id") 
+// 						"A" node outside of needed form has to have a form selector as a value (data-oa-submit="#form-id") 
+// data-oa-timeout	— timeout duration of AJAX request in ms, 30000ms by default
+// data-oa-append	— scroll to the bottom of the *data-oa-target* element, append the HTML response instead of inserting
+// data-oa-prepend	— scroll to the top of the *data-oa-target* element, prepend the HTML response instead of inserting
 // ————————————————————————————————————————————————————————————————————————————————
 
 
@@ -55,14 +64,17 @@ const ODEAJAX = {
 	performing: false,
 	// Base options
 	baseoptions: {
+		append: false,		// Append HTML-response instead of inserting
 		before: false,		// Function before AJAX request
 		callback: false,	// Function after AJAX request
 		confirm: false,		// Confirmation question
 		data: false,
 		history: false,		// Add to browser history
 		method: 'GET',
+		prepend: false,		// Prepend HTML-response instead of inserting
 		scroll: MAIN,	// Scroll to this element
 		target: MAIN,	// Response goes here
+		timeout: 30000,	// ms
 		// enctype: 'application/x-www-form-urlencoded;charset=UTF-8',
 		// url: 			// Required in options
 	},
@@ -72,6 +84,10 @@ const ODEAJAX = {
 	// ————————————————————————————————————————————————————————————————————————————————
 	readOptions: element => {
 		var options = {}
+		// data-oa-append
+		options.append = element.hasAttribute('data-oa-append')
+		// data-oa-prepend
+		options.prepend = element.hasAttribute('data-oa-prepend')
 		// data-oa-before
 		options.before = element.dataset.oaBefore
 		// data-oa-callback
@@ -94,6 +110,8 @@ const ODEAJAX = {
 			? (element.dataset.oaScroll ? document.querySelector(element.dataset.oaScroll) : options.target)
 			: false
 		if (!options.scroll && options.target === MAIN) options.scroll = options.target
+		// data-oa-timeout
+		if (parseInt(element.dataset.oaTimeout)) options.timeout = parseInt(element.dataset.oaTimeout)
 		// Method
 		if (element.nodeName === 'FORM') options.method = (element.getAttribute('method') || 'GET').toUpperCase()	// Allow form to have an input named "method"
 		// URL
@@ -104,7 +122,7 @@ const ODEAJAX = {
 		if (element.nodeName === 'FORM') {
 			options.form = element
 			// data-oa-reset-on-cancel
-			options.oaResetOnCancel = element.dataset.oaResetOnCancel
+			options.oaResetOnCancel = element.hasAttribute('data-oa-reset-on-cancel')
 			options.data = new FormData(element)
 			if (options.data && options.method === 'GET') {
 				options.url += (options.url.indexOf('?')>-1?'&':'?') + new URLSearchParams(options.data).toString()
@@ -131,6 +149,7 @@ const ODEAJAX = {
 			var xhr = new XMLHttpRequest()
 			xhr.open(options.method, options.url)
 			xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest')
+			xhr.timeout = options.timeout
 			if (options.enctype) xhr.setRequestHeader('Content-Type', options.enctype)
 			xhr.onload = function() {
 				ODEAJAX.performing = false
@@ -151,6 +170,10 @@ const ODEAJAX = {
 					reject(xhr)
 				}
 			}
+			xhr.ontimeout = e => {
+				ODEAJAX.performing = false
+				reject(xhr)
+			};
 			xhr.send(options.data)
 		})
 	},
@@ -169,8 +192,12 @@ const ODEAJAX = {
 		if (options.before && typeof window[options.before] === 'function' && !window[options.before]()) return false
 		// Do request
 		ODEAJAX.doActualAjax(options).then(response => {
+			// Show response
 			ODEAJAX.showResponse(response, options)
+			// Execute callback function
 			if (typeof window[options.callback] === 'function') window[options.callback](response, options)
+			// Scroll into view
+			if (options.scroll === true) options.scroll = options.target
 			if (options.scroll) options.scroll.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'nearest'})
 		}).catch(xhr => {
 			ODEAJAX.showError(xhr, options)
@@ -200,7 +227,6 @@ const ODEAJAX = {
 		Array.from(alerts).forEach(alert => { 
 			if (!alert.position) alert.position = vNotify.positionOption.bottomRight
 			if (!alert.fadeInDuration) alert.fadeInDuration = 10
-
 			vNotify[alert.function](alert)
 		})
 	},
@@ -222,8 +248,17 @@ const ODEAJAX = {
 						doc = el
 					}
 				}
-				// Insert HTML
-				options.target.innerHTML = response.html
+				// Insert HTML (or append, or prepend)
+				if (options.append) {
+					options.target.scrollIntoView({block: 'end', inline: 'end'})
+					options.target.insertAdjacentHTML('beforeend', response.html)
+				}
+				else if (options.prepend) {
+					options.target.scrollIntoView({block: 'start', inline: 'start'})
+					options.target.insertAdjacentHTML('afterbegin', response.html)
+				} 
+				else
+					options.target.innerHTML = response.html
 				// Execute JS
 				doc.querySelectorAll('script').forEach(script => {
 					if (script.src) loadJS(script.src, null, options.target)
@@ -245,12 +280,12 @@ const ODEAJAX = {
 	// AJAX-request returned error
 	// ————————————————————————————————————————————————————————————————————————————————
 	showError: (xhr, options) => {
-		console.error(xhr.responseText ? xhr.responseText : xhr.statusText)
+		// console.error(xhr.responseText ? xhr.responseText : (xhr.statusText ? xhr.statusText : 'Timeout'))
 		ODEAJAX.showAlerts([{
 			function: 'error',
-			text: xhr.responseText ? xhr.responseText : xhr.statusText,
+			text: xhr.responseText ? xhr.responseText : (xhr.statusText ? xhr.statusText : 'Timeout'),
 			title: '',
-			sticky: true	
+			// sticky: true,
 		}])
 		// var message = '<div class="alert alert-danger">' + (xhr.responseText ? xhr.responseText : xhr.statusText) + '</div>'
 		// options.target.innerHTML = message
