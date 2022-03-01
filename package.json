@@ -1,0 +1,25 @@
+{
+  "name": "odeajax",
+  "version": "1.0.0",
+  "description": "JS script for generalized Ajax website behavior, where an Ajax request updates content of one element of the document, document title and browser history (if that one element is \"main\"), and also shows alerts.",
+  "main": "dist/\u0016odeajax.min.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oleksavyshnivsky/odeajax.git"
+  },
+  "keywords": [
+    "ajax"
+  ],
+  "author": "Oleksa Vyshnivsky",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/oleksavyshnivsky/odeajax/issues"
+  },
+  "homepage": "https://github.com/oleksavyshnivsky/odeajax#readme"
+}
