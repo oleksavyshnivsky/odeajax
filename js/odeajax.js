@@ -101,7 +101,7 @@ const ODEAJAX = {
 		if (!options.target) options.target = document.querySelector(element.dataset.oaTarget) || element.closest('[data-oa-main]') || MAIN
 		// data-oa-history
 		// 	If not set but the target is "main" — true
-		options.history = element.hasAttribute('data-oa-history') ? !!element.dataset.oaHistory : options.target === MAIN 
+		options.history = element.hasAttribute('data-oa-history') ? true : options.target === MAIN 
 		// data-oa-scroll
 		//		data-oa-scroll exists and has value — it must be a selector of a scroll target
 		//		data-oa-scroll exsist but has no value — we must scroll to a target
