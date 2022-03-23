@@ -1,6 +1,6 @@
 {
   "name": "odeajax",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "JS script for generalized Ajax website behavior, where an Ajax request updates content of one element of the document, document title and browser history (if that one element is \"main\"), and also shows alerts.",
   "main": "dist/\u0016odeajax.min.js",
   "directories": {
