@@ -124,7 +124,7 @@ if (defined('AJAX')) {
 // Functions
 // ————————————————————————————————————————————————————————————————————————————————
 
-// Очистка тексту перед HTML-виводом
+// htmlspecialchars wrapper
 function e($raw_input) { 
 	if (version_compare(PHP_VERSION, '5.4.0') >= 0) {
 		return htmlspecialchars($raw_input, ENT_QUOTES | ENT_HTML401, 'UTF-8'); 

@@ -115,8 +115,8 @@ const ODEAJAX = {
 		// Method
 		if (element.nodeName === 'FORM') options.method = (element.getAttribute('method') || 'GET').toUpperCase()	// Allow form to have an input named "method"
 		// URL
-		options.url = element.nodeName === 'FORM' ? element.getAttribute('action') : element.href // Allow form to have an input named "action"
-		if (element.nodeName === 'FORM' && !options.url)
+		options.url = element.nodeName === 'FORM' ? element.getAttribute('action') : element.href
+		if (!options.url && element.nodeName === 'FORM')
 			options.url = options.method === 'POST' ? window.location.href : window.location.protocol + '//' + window.location.host + window.location.pathname
 		// Data
 		if (element.nodeName === 'FORM') {
@@ -141,6 +141,7 @@ const ODEAJAX = {
 			ODEAJAX.performing = true
 			// Update history. Don't add duplicates
 			var addedState = false
+			options.url = new URL(options.url, window.location.href).href
 			if (options.history && options.url !== window.location.href) {
 				history.pushState({'href': options.url}, '', options.url)
 				addedState = true
@@ -277,16 +278,16 @@ const ODEAJAX = {
 	},
 
 	// ————————————————————————————————————————————————————————————————————————————————
-	// AJAX-request returned error
+	// AJAX request returned an error
 	// ————————————————————————————————————————————————————————————————————————————————
 	showError: (xhr, options) => {
-		// console.error(xhr.responseText ? xhr.responseText : (xhr.statusText ? xhr.statusText : 'Timeout'))
-		ODEAJAX.showAlerts([{
-			function: 'error',
-			text: xhr.responseText ? xhr.responseText : (xhr.statusText ? xhr.statusText : 'Timeout'),
-			title: '',
-			// sticky: true,
-		}])
+		options.target.innerHTML = xhr.responseText ? xhr.responseText : (xhr.statusText ? xhr.statusText : 'Timeout')
+		// ODEAJAX.showAlerts([{
+		// 	function: 'error',
+		// 	text: xhr.responseText ? xhr.responseText : (xhr.statusText ? xhr.statusText : 'Timeout'),
+		// 	title: '',
+		// 	// sticky: true,
+		// }])
 		// var message = '<div class="alert alert-danger">' + (xhr.responseText ? xhr.responseText : xhr.statusText) + '</div>'
 		// options.target.innerHTML = message
 	}
