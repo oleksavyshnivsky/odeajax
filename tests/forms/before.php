@@ -1,5 +1,5 @@
 <form method="post" action="forms" data-oa data-oa-target="#result" data-oa-scroll data-oa-history data-oa-before="myBefore">
-	<input type="hidden" name="action" value="before">
+	<input type="hidden" name="diia" value="before">
 	<input type="submit" value="Send" class="btn btn-primary">
 </form>
 <script>

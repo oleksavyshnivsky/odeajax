@@ -32,14 +32,13 @@ Expected server response on traditional requests:
     <head>
         <title>%TITLE%</title>
         [...]
-        <link rel="stylesheet" href="[...]vanilla-notify.css">
         <script src="[...]docready.js"></script>
     </head>
     <body>
         [...]
         <main id="main">%CONTENT%</main>
         [...]
-        <script src="[...]vanilla-notify.min.js"></script>
+        <script src="[...]notify.min.js?v=[...]"></script>
         <script src="[...]odeajax.min.js?v=[...]"></script>
         [...]
     </body>
@@ -239,6 +238,7 @@ if (isset($_SESSION['msgbox']) and !empty($_SESSION['msgbox'])) {
 // If this is AJAX request, return JSON-structure
 // ————————————————————————————————————————————————————————————————————————————————
 if (defined('AJAX')) {
+    header('Content-Type: application/json; charset=utf-8');
 	echo json_encode([
 		'alerts'	=>	$GLOBALS['msgbox']??null,
 		'html'		=>	$content,
@@ -256,7 +256,6 @@ if (defined('AJAX')) {
 <head>
     <title><?=$title?></title>
 	[...]
-	<link rel="stylesheet" href="vendor/vanilla-notify/vanilla-notify.css">
 	<script src="vendor/docready.js"></script>
 </head>
 <body>
@@ -278,7 +277,15 @@ if (defined('AJAX')) {
 
 ```
 
+## Changes in v1.0.4
 
+- **doAjax(options)** changed to **doAjax(url, options)**
 
+- **Vanilla Notify** from https://github.com/MLaritz/Vanilla-Notify rewritten into **notify.js** which uses Bootstrap 5 toast classes and JS functionality (thus, no separate styles). Specifically, **error** function renamed to **danger**
 
+- Server JSON response requires an appropriate header: 
+  ```php
+  header('Content-Type: application/json; charset=utf-8');
+  ```
 
+- **XMLHttpRequest** replaced with **fetch**

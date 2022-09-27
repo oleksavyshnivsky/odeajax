@@ -2,10 +2,11 @@
  * @file AJAX requests
  * @copyleft Oleksa Vyshnivsky <dying.escape@gmail.com> 2022
  * @license The MIT License (MIT)
+ * @version 1.0.4
  * */
 
 // ————————————————————————————————————————————————————————————————————————————————
-// Require Vanilla Notify from https://github.com/MLaritz/Vanilla-Notify
+// Require notify.js
 // ————————————————————————————————————————————————————————————————————————————————
 
 // ————————————————————————————————————————————————————————————————————————————————
@@ -114,94 +115,95 @@ const ODEAJAX = {
 		if (parseInt(element.dataset.oaTimeout)) options.timeout = parseInt(element.dataset.oaTimeout)
 		// Method
 		if (element.nodeName === 'FORM') options.method = (element.getAttribute('method') || 'GET').toUpperCase()	// Allow form to have an input named "method"
-		// URL
-		options.url = element.nodeName === 'FORM' ? element.getAttribute('action') : element.href
-		if (!options.url && element.nodeName === 'FORM')
-			options.url = options.method === 'POST' ? window.location.href : window.location.protocol + '//' + window.location.host + window.location.pathname
 		// Data
 		if (element.nodeName === 'FORM') {
 			options.form = element
 			// data-oa-reset-on-cancel
 			options.oaResetOnCancel = element.hasAttribute('data-oa-reset-on-cancel')
-			options.data = new FormData(element)
-			if (options.data && options.method === 'GET') {
-				options.url += (options.url.indexOf('?')>-1?'&':'?') + new URLSearchParams(options.data).toString()
-				options.data = false
-			}
+			if (options.method !== 'GET') options.data = new FormData(element)
 		}
 		//
 		return options
 	},
 
 	// ————————————————————————————————————————————————————————————————————————————————
-	// AJAX call 
-	// ————————————————————————————————————————————————————————————————————————————————
-	doActualAjax: options => {
-		return new Promise((resolve, reject) => {
-			ODEAJAX.performing = true
-			// Update history. Don't add duplicates
-			var addedState = false
-			options.url = new URL(options.url, window.location.href).href
-			if (options.history && options.url !== window.location.href) {
-				history.pushState({'href': options.url}, '', options.url)
-				addedState = true
-			}
-			// XHR
-			var xhr = new XMLHttpRequest()
-			xhr.open(options.method, options.url)
-			xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest')
-			xhr.timeout = options.timeout
-			if (options.enctype) xhr.setRequestHeader('Content-Type', options.enctype)
-			xhr.onload = function() {
-				ODEAJAX.performing = false
-				if (xhr.status === 200) {
-					// Update history in case of redirect
-					if (options.history && xhr.responseURL !== window.location.href) 
-						if (addedState)
-							history.replaceState({'href': xhr.responseURL}, '', xhr.responseURL)
-						else
-							history.pushState({'href': xhr.responseURL}, '', xhr.responseURL)
-					// Return JSON object or error
-					try {
-						resolve(JSON.parse(xhr.response))
-					} catch (e) {
-						reject(xhr)
-					}
-				} else {
-					reject(xhr)
-				}
-			}
-			xhr.ontimeout = e => {
-				ODEAJAX.performing = false
-				reject(xhr)
-			};
-			xhr.send(options.data)
-		})
-	},
-
-	// ————————————————————————————————————————————————————————————————————————————————
 	// AJAX request wrapper
 	// ————————————————————————————————————————————————————————————————————————————————
-	doAjax: options => {
+	doAjax: (url, options) => {
+		// No duplicate requests
+		if (ODEAJAX.performing) return false
+
 		options = {...ODEAJAX.baseoptions, ...options}
+		
 		// Confirm request
 		if (options.confirm && !confirm(options.confirm)) {
 			if (options.oaResetOnCancel) options.form.reset()
 			return false
 		}
+		
 		// Action before request (has to return true to continue)
-		if (options.before && typeof window[options.before] === 'function' && !window[options.before]()) return false
-		// Do request
-		ODEAJAX.doActualAjax(options).then(response => {
-			// Show response
-			ODEAJAX.showResponse(response, options)
-			// Execute callback function
-			if (typeof window[options.callback] === 'function') window[options.callback](response, options)
-			// Scroll into view
-			if (options.scroll === true) options.scroll = options.target
-			if (options.scroll) options.scroll.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'nearest'})
-		}).catch(xhr => {
-			ODEAJAX.showError(xhr, options)
+		if (options.before && typeof window[options.before] === 'function' && !window[options.before]())
+			return false
+		
+		// Update history. Don't add duplicates
+		var addedState = false
+
+		// GET form action
+		if (options.data && options.method === 'GET') {
+			url += (url.indexOf('?')>-1?'&':'?') + new URLSearchParams(options.data).toString()
+			options.data = false
+		}
+		
+		// URL preparing
+		url = new URL(url, window.location.href).href
+		if (options.history && url !== window.location.href) {
+			history.pushState({'href': url}, '', url)
+			addedState = true
+		}
+		
+		// Headers
+		const myHeaders = new Headers()
+		myHeaders.append('X-Requested-With', 'XMLHttpRequest')
+		if (options.enctype) myHeaders.append('Content-Type', options.enctype)
+		
+		// Fetch options
+		const fetchOptions = {}
+		fetchOptions.method = options.method
+		fetchOptions.headers = myHeaders
+		if (options.method !== 'GET' && options.data) fetchOptions.body = options.data
+		if (options.timeout) fetchOptions.signal = AbortSignal.timeout(options.timeout) 
+		
+		// fetch
+		ODEAJAX.performing = true
+		fetch(url, fetchOptions).then(async response => {
+			ODEAJAX.performing = false
+			if (response.ok) {
+				// Update history in case of redirect
+				if (options.history && response.url !== window.location.href) 
+					if (addedState)
+						history.replaceState({'href': response.url}, '', response.url)
+					else
+						history.pushState({'href': response.url}, '', response.url)
+				//
+				const contentType = response.headers.get('content-type')
+				if (!contentType || !contentType.includes('application/json')) {
+					ODEAJAX.showError(await response.text(), options)
+				} else {
+					var json = await response.json()
+					// Show response
+					ODEAJAX.showResponse(json, options)
+					// Execute callback function
+					if (typeof window[options.callback] === 'function') window[options.callback](response, options)
+					// Scroll into view
+					if (options.scroll === true) options.scroll = options.target
+					if (options.scroll) options.scroll.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'nearest'})
+				}
+			} else {
+				ODEAJAX.showError(await response.text(), options)
+			}
+		}).catch(error => {
+			ODEAJAX.performing = false
+			ODEAJAX.showError(error, options)
 		})
 	},
 
@@ -211,25 +213,29 @@ const ODEAJAX = {
 	doForm: e => {
 		// No default action
 		e.preventDefault()
-		// No parallel requests
-		if (ODEAJAX.performing) return false
 		// formAction
-		if (e.submitter && e.submitter.hasAttribute('formaction')) e.delegateTarget.setAttribute('action', e.submitter.formAction)
+		if (e.submitter && e.submitter.hasAttribute('formaction'))
+			e.delegateTarget.setAttribute('action', e.submitter.formAction)
+		var url = e.delegateTarget.getAttribute('action')
+		var is_get = e.delegateTarget.getAttribute('method').toUpperCase() === 'GET'
+		if (!url)
+			url = is_get
+				? window.location.protocol + '//' + window.location.host + window.location.pathname
+				: window.location.href
+		if (is_get)
+			url += (url.indexOf('?')>-1?'&':'?') + new URLSearchParams(new FormData(e.delegateTarget)).toString()
+		
 		//
-		ODEAJAX.doAjax(ODEAJAX.readOptions(e.delegateTarget))
+		ODEAJAX.doAjax(url, ODEAJAX.readOptions(e.delegateTarget))
 	},
 
 	// ————————————————————————————————————————————————————————————————————————————————
 	// Alerts
 	// require https://github.com/MLaritz/Vanilla-Notify
-	// alert = {title: "...", text: "...", function: "info|success|warning|error|notify"}
+	// alert = {title: "...", text: "...", function: "info|success|warning|danger|notify"}
 	// ————————————————————————————————————————————————————————————————————————————————
 	showAlerts: alerts => {
-		Array.from(alerts).forEach(alert => { 
-			if (!alert.position) alert.position = vNotify.positionOption.bottomRight
-			if (!alert.fadeInDuration) alert.fadeInDuration = 10
-			vNotify[alert.function](alert)
-		})
+		Array.from(alerts).forEach(alert => vNotify[alert.function](alert))
 	},
 
 	// ————————————————————————————————————————————————————————————————————————————————
@@ -280,16 +286,8 @@ const ODEAJAX = {
 	// ————————————————————————————————————————————————————————————————————————————————
 	// AJAX request returned an error
 	// ————————————————————————————————————————————————————————————————————————————————
-	showError: (xhr, options) => {
-		options.target.innerHTML = xhr.responseText ? xhr.responseText : (xhr.statusText ? xhr.statusText : 'Timeout')
-		// ODEAJAX.showAlerts([{
-		// 	function: 'error',
-		// 	text: xhr.responseText ? xhr.responseText : (xhr.statusText ? xhr.statusText : 'Timeout'),
-		// 	title: '',
-		// 	// sticky: true,
-		// }])
-		// var message = '<div class="alert alert-danger">' + (xhr.responseText ? xhr.responseText : xhr.statusText) + '</div>'
-		// options.target.innerHTML = message
+	showError: (error, options) => {
+		options.target.innerHTML = error ? error : 'Timeout'
 	}
 }
 
@@ -297,6 +295,7 @@ const ODEAJAX = {
 // Initial History action
 // ————————————————————————————————————————————————————————————————————————————————
 history.replaceState({href: window.location.href}, null, window.location.href)
+
 
 // ————————————————————————————————————————————————————————————————————————————————
 // Actions after the full page load
@@ -309,71 +308,70 @@ document.addEventListener('DOMContentLoaded', e => {
 		// Ignoring hash changes
 		if (window.location.hash) return false
 		// Sending request
-		ODEAJAX.doAjax({
-			history: false,
-			url: e.state.href,
-		})
+		ODEAJAX.doAjax(e.state.href, {history: false})
 	})
 	
 	// ————————————————————————————————————————————————————————————————————————————————
-	// "Click" events
+	// "Closing" some div/section by removing innerHTML (if [data-closable] parent exists)
+	//		or by going to a given URL (if [data-closable] parent doesn't exist)
+	// 
+	//	<section data-closable>
+	// 		<button data-close>Close this section</button>
+	//	</section>
+	// 	
+	// 	~~~ or ~~~
+	// 
+	//	<div id="main">
+	//		<button data-close="https://...">Close this section</button>
+	//	</div>
 	// ————————————————————————————————————————————————————————————————————————————————
-	document.addEventListener('click', e => {
-		var path = e.path || (e.composedPath && e.composedPath())
-		path.every(target => {
-			if (target.nodeName === 'BODY' || target.nodeName === 'HTML') return false
-			if (target.hasAttribute('data-close')) {
-				// ————————————————————————————————————————————————————————————————————————————————
-				// "Closing" some div/section by removing innerHTML (if [data-closable] parent exists)
-				//		or by going to a given URL (if [data-closable] parent doesn't exist)
-				// 
-				//	<section data-closable>
-				// 		<button data-close>Close this section</button>
-				//	</section>
-				//	
-				//	<div id="main">
-				//		<button data-close="https://...">Close this section</button>
-				//	</div>
-				// ————————————————————————————————————————————————————————————————————————————————
-				var el = target.closest('[data-closable]')
-				if (el) el.innerHTML = ''
-				else if (target.dataset.close) ODEAJAX.doAjax({url: target.dataset.close, history: true})
-				return false
-			} else if (target.nodeName === 'A' && target.hasAttribute('data-oa')) {
-				// ————————————————————————————————————————————————————————————————————————————————
-				// AJAX page load
-				// <a href="https://..." data-oa>...</a>
-				// ————————————————————————————————————————————————————————————————————————————————
-				// Middle/right mouse button click, shift|alt|meta|ctrl — default action
-				if (e.button > 0 || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey) return true
-				e.preventDefault()
-				e.delegateTarget = target
-				if (ODEAJAX.performing) return false
-				ODEAJAX.doAjax(ODEAJAX.readOptions(e.delegateTarget))
-				return false
-			} else if (target.nodeName === 'A' && target.hasAttribute('data-oa-submit')) {
-				// ————————————————————————————————————————————————————————————————————————————————
-				// Form submit with anchor
-				// <form data-oa>
-				// 	<a href="javascript:void(0)" data-oa-submit>...</a>
-				// </form>
-				// 
-				// <form id="form1" data-oa>...</form>
-				// <a href="javascript:void(0)" data-oa-submit="#form1">...</a>
-				// ————————————————————————————————————————————————————————————————————————————————
-				e.delegateTarget = target.dataset.oaSubmit ? document.querySelector(target.dataset.oaSubmit) : target.closest('form')
-				ODEAJAX.doForm(e)
-				return false
-			}
-			return true
-		})
+	document.querySelector('body').addEventListener('click', e => {
+		var target = e.target.closest('[data-close]')
+		if (target) {
+			var el = target.closest('[data-closable]')
+			if (el)
+				el.innerHTML = ''
+			else if (target.dataset.close)
+				ODEAJAX.doAjax(target.dataset.close)
+		}
+	})
+
+	// ————————————————————————————————————————————————————————————————————————————————
+	// AJAX page load
+	// <a href="https://..." data-oa>...</a>
+	// ————————————————————————————————————————————————————————————————————————————————
+	document.querySelector('body').addEventListener('click', e => {
+		// Middle/right mouse button click, shift|alt|meta|ctrl — default action
+		if (e.button > 0 || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey) return true
+		var target = e.target.closest('a[data-oa]')
+		if (target) {
+			e.preventDefault()
+			ODEAJAX.doAjax(target.href, ODEAJAX.readOptions(target))
+		}
+	})
+
+	// ————————————————————————————————————————————————————————————————————————————————
+	// Form submit with anchor
+	// <form data-oa>
+	// 	<a href="javascript:void(0)" data-oa-submit>...</a>
+	// </form>
+	// 
+	// <form id="form1" data-oa>...</form>
+	// <a href="javascript:void(0)" data-oa-submit="#form1">...</a>
+	// ————————————————————————————————————————————————————————————————————————————————
+	document.querySelector('body').addEventListener('click', e => {
+		var target = e.target.closest('a[data-oa-submit]')
+		if (target) {
+			e.delegateTarget = target.dataset.oaSubmit ? document.querySelector(target.dataset.oaSubmit) : target.closest('form')
+			ODEAJAX.doForm(e)
+		}
 	})
 
 	// ————————————————————————————————————————————————————————————————————————————————
 	// "Submit" event for:
 	// <form data-oa>
 	// ————————————————————————————————————————————————————————————————————————————————
-	document.addEventListener('submit', e => {
+	document.querySelector('body').addEventListener('submit', e => {
 		if (e.target.hasAttribute('data-oa')) {
 			e.delegateTarget = e.target
 			ODEAJAX.doForm(e)
@@ -382,10 +380,11 @@ document.addEventListener('DOMContentLoaded', e => {
 
 	// ————————————————————————————————————————————————————————————————————————————————
 	// "Change" event for:
-	// <select [form=...] data-oa-submit></select>
-	// <input type="checkbox" [form=...] data-oa-submit>
+	// <select [form=...] data-oa-submit>
+	// <input [form=...] data-oa-submit>
+	// <textarea [form=...] data-oa-submit>
 	// ————————————————————————————————————————————————————————————————————————————————
-	document.addEventListener('change', e => {
+	document.querySelector('body').addEventListener('change', e => {
 		if (e.target.hasAttribute('data-oa-submit')) {
 			e.delegateTarget = e.target.form
 			ODEAJAX.doForm(e)

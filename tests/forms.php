@@ -3,12 +3,11 @@
 $title = 'Forms';
 
 // ————————————————————————————————————————————————————————————————————————————————
-// Function for alert generation -- for displaying via vanilla-notify.js
-//	Style = 'danger' was supposed to correpond to the Bootstrap alert class. Vanilla Notify uses 'error' function for this.
-//	Some other styles and functions -- success, warning, info -- are the same in Bootstrap and Vanilla Notify 
+// Function for alert generation
+//	Style = notify|primary|secondary|success|danger|warning|info|light|dark
 // ————————————————————————————————————————————————————————————————————————————————
 function msgbox($title, $message, $style = 'danger') {
-	$function = $style === 'danger' ? 'error' : $style;
+	$function = $style ?: 'danger';
 	$GLOBALS['msgbox'][] = ['title' => $title, 'text' => $message, 'function' => $function];
 }
 
@@ -19,7 +18,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	switch (filter_input(INPUT_POST, 'action')) {
 		case 'message':
 			$title = 'Some title';
-			msgbox('Info', 'Some message', 'success');
+			msgbox('Success', 'Some message', 'success');
+			msgbox('Error', 'Some message', 'danger');
+			msgbox('Info', 'Some message', 'info');
+			msgbox('Warning', 'Some message', 'warning');
+			msgbox('', 'Some message');
 			$success = true;
 			break;
 		case 'servererror':
@@ -37,6 +40,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		case 'timeout':
 			sleep(5);
 			msgbox('Info', 'This supposed to be timeout', 'warning');
+			$success = true;
+			break;
+		case 'outside':
+			msgbox(date('H:i:s'), 'Form has been sent', 'info');
 			$success = true;
 			break;
 		default:
@@ -59,6 +66,7 @@ $formexamples = [
 	'append'	=>	'Append/Prepend',
 	'before'	=>	'Additional function before request',
 	'callback'	=>	'Additional function after request',
+	'outside'	=>	'Submitter outside of form',
 ];
 ?>
 

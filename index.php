@@ -8,7 +8,6 @@ $GLOBALS['msgbox'] = [];
 // ————————————————————————————————————————————————————————————————————————————————
 if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) and $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') define('AJAX', true);
 
-
 // ————————————————————————————————————————————————————————————————————————————————
 // Common vars
 // ————————————————————————————————————————————————————————————————————————————————
@@ -37,6 +36,7 @@ if (isset($_SESSION['msgbox']) and !empty($_SESSION['msgbox'])) {
 // If this is AJAX request, return JSON-structure
 // ————————————————————————————————————————————————————————————————————————————————
 if (defined('AJAX')) {
+	header('Content-Type: application/json; charset=utf-8');
 	echo json_encode([
 		'alerts'	=>	$GLOBALS['msgbox']??null,
 		'html'		=>	$content,
@@ -80,8 +80,7 @@ if (defined('AJAX')) {
 		}
 	</style>
 
-	<link rel="stylesheet" href="vendor/vanilla-notify/vanilla-notify.css">
-	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
 	
 	<script src="vendor/docready.js"></script>
 </head>
@@ -109,8 +108,9 @@ if (defined('AJAX')) {
 	</nav>
 	<main class="container" id="main"><?=$content?></main>
 
-	<script src="vendor/vanilla-notify/vanilla-notify.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.min.js" integrity="sha384-ODmDIVzN+pFdexxHEHFBQH3/9/vQ9uori45z4JjnFsRydbmQbmL5t1tQ0culUzyK" crossorigin="anonymous"></script>
 	<script src="vendor/copytoclipboard.js"></script>
+	<script src="js/notify.js?v=<?=filemtime('js/notify.js')?>"></script>
 	<script src="js/odeajax.js?v=<?=filemtime('js/odeajax.js')?>"></script>
 	<?php if ($GLOBALS['msgbox']): ?>
 	<script>
@@ -126,11 +126,7 @@ if (defined('AJAX')) {
 
 // htmlspecialchars wrapper
 function e($raw_input) { 
-	if (version_compare(PHP_VERSION, '5.4.0') >= 0) {
-		return htmlspecialchars($raw_input, ENT_QUOTES | ENT_HTML401, 'UTF-8'); 
-	} else {
-		return htmlspecialchars($raw_input, ENT_QUOTES, 'UTF-8'); 
-	}
+	return htmlspecialchars($raw_input, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }
 
 
