@@ -77,7 +77,6 @@ const ODEAJAX = {
 		target: MAIN,	// Response goes here
 		timeout: 30000,	// ms
 		// enctype: 'application/x-www-form-urlencoded;charset=UTF-8',
-		// url: 			// Required in options
 	},
 
 	// ————————————————————————————————————————————————————————————————————————————————
@@ -147,12 +146,6 @@ const ODEAJAX = {
 		
 		// Update history. Don't add duplicates
 		var addedState = false
-
-		// GET form action
-		if (options.data && options.method === 'GET') {
-			url += (url.indexOf('?')>-1?'&':'?') + new URLSearchParams(options.data).toString()
-			options.data = false
-		}
 		
 		// URL preparing
 		url = new URL(url, window.location.href).href
@@ -209,24 +202,20 @@ const ODEAJAX = {
 
 	// ————————————————————————————————————————————————————————————————————————————————
 	// Form sending
+	// 
+	// URL = Value of the Form Action attribute 
+	// 			+ query string from inputs if this is a GET form
 	// ————————————————————————————————————————————————————————————————————————————————
-	doForm: e => {
-		// No default action
-		e.preventDefault()
-		// formAction
-		if (e.submitter && e.submitter.hasAttribute('formaction'))
-			e.delegateTarget.setAttribute('action', e.submitter.formAction)
-		var url = e.delegateTarget.getAttribute('action')
-		var is_get = e.delegateTarget.getAttribute('method').toUpperCase() === 'GET'
+	submit: form => {
+		var url = form.getAttribute('action')
+		var is_get = form.getAttribute('method').toUpperCase() === 'GET'
 		if (!url)
 			url = is_get
 				? window.location.protocol + '//' + window.location.host + window.location.pathname
 				: window.location.href
 		if (is_get)
-			url += (url.indexOf('?')>-1?'&':'?') + new URLSearchParams(new FormData(e.delegateTarget)).toString()
-		
-		//
-		ODEAJAX.doAjax(url, ODEAJAX.readOptions(e.delegateTarget))
+			url += (url.indexOf('?')>-1?'&':'?') + new URLSearchParams(new FormData(form)).toString()
+		ODEAJAX.doAjax(url, ODEAJAX.readOptions(form))
 	},
 
 	// ————————————————————————————————————————————————————————————————————————————————
@@ -362,19 +351,26 @@ document.addEventListener('DOMContentLoaded', e => {
 	document.querySelector('body').addEventListener('click', e => {
 		var target = e.target.closest('a[data-oa-submit]')
 		if (target) {
-			e.delegateTarget = target.dataset.oaSubmit ? document.querySelector(target.dataset.oaSubmit) : target.closest('form')
-			ODEAJAX.doForm(e)
+			var form = target.dataset.oaSubmit ? document.querySelector(target.dataset.oaSubmit) : target.closest('form')
+			ODEAJAX.submit(form)
 		}
 	})
 
 	// ————————————————————————————————————————————————————————————————————————————————
 	// "Submit" event for:
 	// <form data-oa>
+	// 
+	// Update Form Action if there is a submitter with a formaction attribute:
+	// 	<form data-oa>
+	// 		<input type="submit" formaction="/action1.php">
+	// 		<input type="submit" formaction="/action2.php">
 	// ————————————————————————————————————————————————————————————————————————————————
 	document.querySelector('body').addEventListener('submit', e => {
 		if (e.target.hasAttribute('data-oa')) {
-			e.delegateTarget = e.target
-			ODEAJAX.doForm(e)
+			e.preventDefault()
+			if (e.submitter && e.submitter.hasAttribute('formaction'))
+				e.target.setAttribute('action', e.submitter.formAction)
+			ODEAJAX.submit(e.target)
 		}
 	})
 
@@ -386,8 +382,7 @@ document.addEventListener('DOMContentLoaded', e => {
 	// ————————————————————————————————————————————————————————————————————————————————
 	document.querySelector('body').addEventListener('change', e => {
 		if (e.target.hasAttribute('data-oa-submit')) {
-			e.delegateTarget = e.target.form
-			ODEAJAX.doForm(e)
+			ODEAJAX.submit(e.target.form)
 		}
 	})
 })
