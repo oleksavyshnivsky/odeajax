@@ -281,6 +281,8 @@ if (defined('AJAX')) {
 
 - **doAjax(options)** changed to **doAjax(url, options)**
 
+- **doForm(event)** replaced with **submit(form)**
+
 - **Vanilla Notify** from https://github.com/MLaritz/Vanilla-Notify rewritten into **notify.js** which uses Bootstrap 5 toast classes and JS functionality (thus, no separate styles). Specifically, **error** function renamed to **danger**
 
 - Server JSON response requires an appropriate header: 
