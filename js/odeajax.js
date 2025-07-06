@@ -2,7 +2,7 @@
  * @file AJAX requests
  * @copyleft Oleksa Vyshnivsky <dying.escape@gmail.com> 2022
  * @license The MIT License (MIT)
- * @version 1.0.4
+ * @version 1.0.5
  * */
 
 // ————————————————————————————————————————————————————————————————————————————————
@@ -40,8 +40,8 @@
 // Support action: Dynamic script loading
 // https://stackoverflow.com/a/31374433/5479761
 // ————————————————————————————————————————————————————————————————————————————————
-var loadJS = function(url, implementationCode, location){
-	var scriptTag = document.createElement('script')
+const loadJS = (url, implementationCode, location) => {
+	const scriptTag = document.createElement('script')
 	scriptTag.src = url
 
 	scriptTag.onload = implementationCode
@@ -82,8 +82,8 @@ const ODEAJAX = {
 	// ————————————————————————————————————————————————————————————————————————————————
 	// Read data-oa-... settings from the HTML node
 	// ————————————————————————————————————————————————————————————————————————————————
-	readOptions: element => {
-		var options = {}
+	readOptions: (element) => {
+		const options = {}
 		// data-oa-append
 		options.append = element.hasAttribute('data-oa-append')
 		// data-oa-prepend
@@ -101,7 +101,7 @@ const ODEAJAX = {
 		if (!options.target) options.target = document.querySelector(element.dataset.oaTarget) || element.closest('[data-oa-main]') || MAIN
 		// data-oa-history
 		// 	If not set but the target is "main" — true
-		options.history = element.hasAttribute('data-oa-history') ? true : options.target === MAIN 
+		options.history = element.hasAttribute('data-oa-history') ? true : options.target === MAIN
 		// data-oa-scroll
 		//		data-oa-scroll exists and has value — it must be a selector of a scroll target
 		//		data-oa-scroll exsist but has no value — we must scroll to a target
@@ -121,7 +121,6 @@ const ODEAJAX = {
 			options.oaResetOnCancel = element.hasAttribute('data-oa-reset-on-cancel')
 			if (options.method !== 'GET') options.data = new FormData(element)
 		}
-		//
 		return options
 	},
 
@@ -145,7 +144,7 @@ const ODEAJAX = {
 			return false
 		
 		// Update history. Don't add duplicates
-		var addedState = false
+		let addedState = false
 		
 		// URL preparing
 		url = new URL(url, window.location.href).href
@@ -164,7 +163,7 @@ const ODEAJAX = {
 		fetchOptions.method = options.method
 		fetchOptions.headers = myHeaders
 		if (options.method !== 'GET' && options.data) fetchOptions.body = options.data
-		if (options.timeout) fetchOptions.signal = AbortSignal.timeout(options.timeout) 
+		if (options.timeout) fetchOptions.signal = AbortSignal.timeout(options.timeout)
 		
 		// fetch
 		ODEAJAX.performing = true
@@ -172,17 +171,17 @@ const ODEAJAX = {
 			ODEAJAX.performing = false
 			if (response.ok) {
 				// Update history in case of redirect
-				if (options.history && response.url !== window.location.href) 
+				if (options.history && response.url !== window.location.href) {
 					if (addedState)
 						history.replaceState({'href': response.url}, '', response.url)
 					else
 						history.pushState({'href': response.url}, '', response.url)
-				//
+				}
 				const contentType = response.headers.get('content-type')
 				if (!contentType || !contentType.includes('application/json')) {
 					ODEAJAX.showError(await response.text(), options)
 				} else {
-					var json = await response.json()
+					const json = await response.json()
 					// Show response
 					ODEAJAX.showResponse(json, options)
 					// Execute callback function
@@ -223,60 +222,81 @@ const ODEAJAX = {
 	// require https://github.com/MLaritz/Vanilla-Notify
 	// alert = {title: "...", text: "...", function: "info|success|warning|danger|notify"}
 	// ————————————————————————————————————————————————————————————————————————————————
-	showAlerts: alerts => {
+    showAlerts: alerts => {
 		Array.from(alerts).forEach(alert => vNotify[alert.function](alert))
-	},
+    },
 
-	// ————————————————————————————————————————————————————————————————————————————————
-	// Show loaded page
-	// ————————————————————————————————————————————————————————————————————————————————
-	showResponse: (response, options) => {
-		// HTML
-		if (response.success) {
-			if (response.html) {
-				// Downloaded HTML-document
-				var doc = new DOMParser().parseFromString(response.html, 'text/html')
-				// Partial HTML-document
-				if (options.target.id) {
-					var el = doc.getElementById(options.target.id)
-					if (el) {
-						response.html = el.innerHTML
-						doc = el
-					}
-				}
-				// Insert HTML (or append, or prepend)
-				if (options.append) {
-					options.target.scrollIntoView({block: 'end', inline: 'end'})
-					options.target.insertAdjacentHTML('beforeend', response.html)
-				}
-				else if (options.prepend) {
-					options.target.scrollIntoView({block: 'start', inline: 'start'})
-					options.target.insertAdjacentHTML('afterbegin', response.html)
-				} 
-				else
-					options.target.innerHTML = response.html
-				// Execute JS
-				doc.querySelectorAll('script').forEach(script => {
-					if (script.src) loadJS(script.src, null, options.target)
-					else {
-						try {
-							(1,eval)(script.innerText)
-						} catch (e) {}
-					}
-				})
-				// Document title
-				if (options.history) document.title = response.title ? response.title : doc.title 
-			}
-		}
-		// Alerts
-		if (response.alerts) ODEAJAX.showAlerts(response.alerts)
-	},
+    // ————————————————————————————————————————————————————————————————————————————————
+    // Show loaded page (refactored for modularity and robustness)
+    // ————————————————————————————————————————————————————————————————————————————————
+    showResponse: (response, options) => {
+        if (response.success && response.html) {
+            const doc = new DOMParser().parseFromString(response.html, 'text/html')
+            const htmlContent = ODEAJAX._getPartialHtml(doc, options.target)
+            ODEAJAX._insertHtml(options.target, htmlContent, options)
+            ODEAJAX._executeScripts(doc, options.target)
+            if (options.history) {
+                document.title = response.title ? response.title : doc.title
+            }
+        }
+        if (response.alerts) ODEAJAX.showAlerts(response.alerts)
+    },
+
+    // Helper: Extract partial HTML by target id if present
+    _getPartialHtml: (doc, target) => {
+        if (target?.id) {
+            const el = doc.getElementById(target.id)
+            if (el) {
+                return el.innerHTML
+            }
+        }
+        return doc.documentElement ? doc.documentElement.innerHTML : doc.innerHTML
+    },
+
+    // Helper: Insert HTML (append, prepend, or replace)
+    _insertHtml: (target, html, options) => {
+        if (!target) return
+        if (options.append) {
+            target.scrollIntoView({block: 'end', inline: 'end'})
+            target.insertAdjacentHTML('beforeend', html)
+        } else if (options.prepend) {
+            target.scrollIntoView({block: 'start', inline: 'start'})
+            target.insertAdjacentHTML('afterbegin', html)
+        } else {
+            target.innerHTML = html
+        }
+    },
+
+    // Helper: Execute scripts in loaded HTML
+    _executeScripts: (doc, target) => {
+        (doc.querySelectorAll ? doc.querySelectorAll('script') : []).forEach(script => {
+            if (script.src) {
+                loadJS(script.src, null, target)
+            } else {
+                try {
+                    // eslint-disable-next-line no-eval
+                    (1,eval)(script.innerText)
+                } catch (e) {
+                    console.error('Script execution error in loaded content:', e)
+                }
+            }
+        })
+    },
 
 	// ————————————————————————————————————————————————————————————————————————————————
 	// AJAX request returned an error
 	// ————————————————————————————————————————————————————————————————————————————————
+	// For accessibility, consider using ARIA live regions for error/alert messages if notify.js does not already do this.
 	showError: (error, options) => {
-		options.target.innerHTML = error ? error : 'Timeout'
+		console.error('ODEAJAX Error:', error)
+		if (typeof vNotify !== 'undefined') {
+			vNotify.danger({
+				title: 'AJAX Error',
+				text: (typeof error === 'string' ? error : (error.message || 'Unknown error occurred'))
+			})
+		} else {
+			alert('AJAX Error: ' + (typeof error === 'string' ? error : (error.message || 'Unknown error occurred')))
+		}
 	}
 }
 

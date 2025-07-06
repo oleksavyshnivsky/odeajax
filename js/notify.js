@@ -3,8 +3,8 @@
  * Uses Bootstrap 5 classes and functions
  * */
 
-var vNotify = function() {
-	// Positions for coniner
+const vNotify = (() => {
+	// Positions for container
 	const positions = {
 		topLeft: 'topLeft',
 		topRight: 'topRight',
@@ -12,44 +12,44 @@ var vNotify = function() {
 		bottomRight: 'bottomRight',
 		center: 'center'
 	}
-	// Display options 
+	// Display options
 	const options = {
-		delay: 5000,			// Duration of display
-		fadeInDuration: 100, 	// 
-		fadeOutDuration: 300,	// 
-		fadeInterval: 50,		// Opacity change step, ms
-		position: positions.bottomRight,	// Default position
-		postHoverDelay: 5000,	// Duration of display afet mouseout
-		sticky: false,			// true => Do not autohide
+		delay: 5000, // Duration of display
+		fadeInDuration: 100,
+		fadeOutDuration: 300,
+		fadeInterval: 50, // Opacity change step, ms
+		position: positions.bottomRight, // Default position
+		postHoverDelay: 5000, // Duration of display after mouseout
+		sticky: false // true => Do not autohide
 	}
 
 	// Different styles
-	var notify = function(a) { makeItem(a) }
-	var primary = function(a) { return a.notifyClass = 'text-bg-primary', makeItem(a) }
-	var secondary = function(a) { return a.notifyClass = 'text-bg-secondary', makeItem(a) }
-	var success = function(a) { return a.notifyClass = 'text-bg-success', makeItem(a) }
-	var danger = function(a) { return a.notifyClass = 'text-bg-danger', makeItem(a) }
-	var warning = function(a) { return a.notifyClass = 'text-bg-warning', makeItem(a) }
-	var info = function(a) { return a.notifyClass = 'text-bg-info', makeItem(a) }
-	var light = function(a) { return a.notifyClass = 'text-bg-light', makeItem(a) }
-	var dark = function(a) { return a.notifyClass = 'text-bg-dark', makeItem(a) }
+	const notify = a => makeItem(a)
+	const primary = a => { a.notifyClass = 'text-bg-primary'; return makeItem(a) }
+	const secondary = a => { a.notifyClass = 'text-bg-secondary'; return makeItem(a) }
+	const success = a => { a.notifyClass = 'text-bg-success'; return makeItem(a) }
+	const danger = a => { a.notifyClass = 'text-bg-danger'; return makeItem(a) }
+	const warning = a => { a.notifyClass = 'text-bg-warning'; return makeItem(a) }
+	const info = a => { a.notifyClass = 'text-bg-info'; return makeItem(a) }
+	const light = a => { a.notifyClass = 'text-bg-light'; return makeItem(a) }
+	const dark = a => { a.notifyClass = 'text-bg-dark'; return makeItem(a) }
 
 	// Creation of a toast
-	var makeItem = function(a) {
-		if (!a.title && !a.text) return null
-		var toast = document.createElement('div')
-		toast.role = 'alert'
-		toast.ariaLive = 'assertive'
-		toast.ariaAtomic = true
+	const makeItem = a => {
+		if (!a || (!a.title && !a.text)) return null
+		const toast = document.createElement('div')
+		toast.setAttribute('role', 'status')
+		toast.setAttribute('aria-live', 'polite')
+		toast.setAttribute('aria-atomic', 'true')
 		toast.classList.add('toast', 'show', a.notifyClass)
-		toast.style.opacity = 0 
+		toast.style.opacity = 0
 		toast.options = setOptions(a)
 		toast.addEventListener('hidden.bs.toast', () => {
 			destroy(toast)
 			destroyContainers()
 		})
 
-		if (a.title) { 
+		if (a.title) {
 			toast.appendChild(makeTitle(a.title))
 			a.text && toast.appendChild(makeBody(a.text))
 		} else {
@@ -58,25 +58,36 @@ var vNotify = function() {
 
 		toast.delay = toast.dataset.bsDelay = toast.options.delay
 
-		var setFadeOutInterval = function() {
+		const setFadeOutInterval = () => {
 			toast.fadeInterval = setOpacityInterval('out', toast.options.fadeOutDuration, toast)
 		}
-		var pauseOnHover = function() { 
+		const pauseOnHover = () => {
 			clearTimeout(toast.timeout)
 			clearTimeout(toast.fadeInterval)
 			toast.style.opacity = null
 			toast.delay = toast.options.postHoverDelay
 		}
-		var setToastTimeout = function() {
+		const setToastTimeout = () => {
 			toast.timeout = setTimeout(setFadeOutInterval, toast.delay)
 		}
 		getContainer(toast.options.position).appendChild(toast)
 		toast.addEventListener('mouseover', pauseOnHover)
 		setOpacityInterval('in', toast.options.fadeInDuration, toast)
-		// 
 		if (!toast.options.sticky) {
 			toast.addEventListener('mouseout', setToastTimeout)
 			setToastTimeout()
+		}
+		// Keyboard accessibility for close button
+		const closeBtn = toast.querySelector('.btn-close')
+		if (closeBtn) {
+			closeBtn.tabIndex = 0
+			closeBtn.setAttribute('aria-label', 'Close notification')
+			closeBtn.addEventListener('keydown', e => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault()
+					closeBtn.click()
+				}
+			})
 		}
 		return toast
 	}
@@ -84,8 +95,8 @@ var vNotify = function() {
 	// ————————————————————————————————————————————————————————————————————————————————
 	// Body without a title
 	// ————————————————————————————————————————————————————————————————————————————————
-	var makeBodyWithCloseBtn = function(body) {
-		var flex = document.createElement('div')
+	const makeBodyWithCloseBtn = body => {
+		const flex = document.createElement('div')
 		flex.classList.add('d-flex')
 		flex.appendChild(makeBody(body))
 		flex.appendChild(makeCloseBtn())
@@ -95,10 +106,15 @@ var vNotify = function() {
 	// ————————————————————————————————————————————————————————————————————————————————
 	// Body, if a title is present
 	// ————————————————————————————————————————————————————————————————————————————————
+	const isHtml = str => /<[a-z][\s\S]*>/i.test(str)
 	var makeBody = function(body) {
 		var div = document.createElement('div')
 		div.classList.add('toast-body')
-		div.innerText = body
+		if (typeof body === 'string' && isHtml(body)) {
+			div.innerHTML = body
+		} else {
+			div.innerText = body
+		}
 		return div
 	}
 
@@ -228,4 +244,4 @@ var vNotify = function() {
 		options: options,
 		positionOption: positions
 	}
-}()
+})()
